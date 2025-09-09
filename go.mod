@@ -1,4 +1,4 @@
-module auth
+module github.com/westcrime/auth
 
 go 1.24.6
 
