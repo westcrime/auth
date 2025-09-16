@@ -12,6 +12,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/westcrime/auth/internal/config"
 	grpcserver "github.com/westcrime/auth/internal/grpc_server"
+	hashCrypto "github.com/westcrime/auth/internal/hash/crypto"
+	urp "github.com/westcrime/auth/internal/user_repository/postgres"
+	usp "github.com/westcrime/auth/internal/user_service/postgres"
 	desc "github.com/westcrime/auth/pkg/user_v1"
 )
 
@@ -48,7 +51,12 @@ func main() {
 
 	s := grpc.NewServer()
 	reflection.Register(s)
-	desc.RegisterUserV1Server(s, &grpcserver.Server{Pool: pool})
+
+	hashService := &hashCrypto.SHA256Hasher{}
+	ur := urp.NewUserRepository(pool)
+	us := usp.NewUserService(ur, hashService)
+
+	desc.RegisterUserV1Server(s, grpcserver.NewServer(us))
 
 	log.Printf("server listening at %v", lis.Addr())
 

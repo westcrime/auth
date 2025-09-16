@@ -1,4 +1,4 @@
-package query
+package postgres
 
 import (
 	"context"
@@ -9,9 +9,18 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/westcrime/auth/internal/model"
+	"github.com/westcrime/auth/internal/user_repository"
 )
 
-func CreateUser(ctx context.Context, pool *pgxpool.Pool, createUser *model.CreateUser) (error, int64) {
+type userRepository struct {
+	pool *pgxpool.Pool
+}
+
+func NewUserRepository(pool *pgxpool.Pool) userrepository.UserRepository {
+	return &userRepository{pool: pool}
+}
+
+func (ur *userRepository) CreateUser(ctx context.Context, createUser *model.CreateUser) (error, int64) {
 	builderInsert := sq.Insert("users").
 		PlaceholderFormat(sq.Dollar).
 		Columns("name", "email", "password_hash", "role", "created_at").
@@ -24,7 +33,7 @@ func CreateUser(ctx context.Context, pool *pgxpool.Pool, createUser *model.Creat
 	}
 
 	var id int64
-	err = pool.QueryRow(ctx, query, args...).Scan(&id)
+	err = ur.pool.QueryRow(ctx, query, args...).Scan(&id)
 	if err != nil {
 		return err, -1
 	}
@@ -32,7 +41,7 @@ func CreateUser(ctx context.Context, pool *pgxpool.Pool, createUser *model.Creat
 	return nil, id
 }
 
-func UpdateUser(ctx context.Context, pool *pgxpool.Pool, updateUser *model.UpdateUser) error {
+func (ur *userRepository) UpdateUser(ctx context.Context, updateUser *model.UpdateUser) error {
 	builderInsert := sq.Update("users").
 		PlaceholderFormat(sq.Dollar).
 		Set("email", updateUser.Info.Email).
@@ -44,7 +53,7 @@ func UpdateUser(ctx context.Context, pool *pgxpool.Pool, updateUser *model.Updat
 		return err
 	}
 
-	res, err := pool.Exec(ctx, query, args...)
+	res, err := ur.pool.Exec(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -54,7 +63,7 @@ func UpdateUser(ctx context.Context, pool *pgxpool.Pool, updateUser *model.Updat
 	return nil
 }
 
-func DeleteUser(ctx context.Context, pool *pgxpool.Pool, user_id int64) error {
+func (ur *userRepository) DeleteUser(ctx context.Context, user_id int64) error {
 	builderInsert := sq.Delete("users").
 		PlaceholderFormat(sq.Dollar).
 		Where(sq.Eq{"id": user_id})
@@ -64,7 +73,7 @@ func DeleteUser(ctx context.Context, pool *pgxpool.Pool, user_id int64) error {
 		return err
 	}
 
-	res, err := pool.Exec(ctx, query, args...)
+	res, err := ur.pool.Exec(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -115,7 +124,7 @@ func DeleteUser(ctx context.Context, pool *pgxpool.Pool, user_id int64) error {
 // 	return nil, users
 // }
 
-func GetUser(ctx context.Context, pool *pgxpool.Pool, user_id int64) (error, model.User) {
+func (ur *userRepository) GetUser(ctx context.Context, user_id int64) (error, model.User) {
 	builderInsert := sq.Select("id", "email", "name", "role", "created_at", "updated_at").
 		From("users").
 		PlaceholderFormat(sq.Dollar).
@@ -127,7 +136,7 @@ func GetUser(ctx context.Context, pool *pgxpool.Pool, user_id int64) (error, mod
 		return err, model.User{}
 	}
 
-	rows, err := pool.Query(ctx, query, args...)
+	rows, err := ur.pool.Query(ctx, query, args...)
 	if err != nil {
 		return err, model.User{}
 	}
